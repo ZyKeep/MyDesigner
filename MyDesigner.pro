@@ -3,10 +3,10 @@ TARGET      = $$qtLibraryTarget(myuiplugin)
 TEMPLATE    = lib
 
 HEADERS     = slidenavigationplugin.h  myui.h\
-    navlistviewplugin.h \
+    navlistviewplugin.h mybuttonbarplugin.h\
     colorprogressbarplugin.h
 SOURCES     = slidenavigationplugin.cpp  myui.cpp\
-    navlistviewplugin.cpp   \
+    navlistviewplugin.cpp   mybuttonbarplugin.cpp\
     colorprogressbarplugin.cpp
 RESOURCES   = icons.qrc
 LIBS        += -L. 
@@ -24,7 +24,7 @@ INSTALLS    += target
 include(slidenavigation.pri)
 include(colorprogressbar.pri)
 include(navlistview.pri)
-
+include(mybuttonbar.pri)
 
 DISTFILES +=
 

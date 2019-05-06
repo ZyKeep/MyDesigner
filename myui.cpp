@@ -1,7 +1,7 @@
 #include "slidenavigationplugin.h"
 #include "navlistviewplugin.h"
 #include "colorprogressbarplugin.h"
-
+#include "mybuttonbarplugin.h"
 #include "myui.h"
 
 MyUI::MyUI(QObject *parent)
@@ -10,7 +10,7 @@ MyUI::MyUI(QObject *parent)
     m_widgets.append(new SlidenavigationPlugin(this));
     m_widgets.append(new NavListViewPlugin(this));
     m_widgets.append(new ColorProgressBarPlugin(this));
-
+    m_widgets.append(new MyButtonBarPlugin(this));
 
 }
 
