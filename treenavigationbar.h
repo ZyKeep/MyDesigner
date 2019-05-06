@@ -11,7 +11,7 @@
 #include <QtUiPlugin/QDesignerExportWidget>
 #endif
 //折叠图标
-class FoldShape
+class QDESIGNER_WIDGET_EXPORT  FoldShape
 {
 public:
     //折叠图形类型
@@ -40,7 +40,7 @@ private:
 };
 Q_DECLARE_METATYPE(FoldShape)
 
-class TreeNode
+class QDESIGNER_WIDGET_EXPORT  TreeNode
 {
 public:
     TreeNode();
@@ -84,7 +84,7 @@ private:
 };
 Q_DECLARE_METATYPE(TreeNode)
 
-class TreeNodeDelegate : public QStyledItemDelegate
+class QDESIGNER_WIDGET_EXPORT TreeNodeDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
 public:
@@ -97,12 +97,14 @@ private:
     QSize m_size;
 };
 
-class TreeNodeModel : public QAbstractListModel
+class QDESIGNER_WIDGET_EXPORT TreeNodeModel : public QAbstractListModel
 {
     Q_OBJECT
 public:
     TreeNodeModel(QObject* parent);
     ~TreeNodeModel();
+    void addData(TreeNode& node){m_nodeList.push_back(node);}
+
 
 protected:
     int rowCount(const QModelIndex &parent) const;
