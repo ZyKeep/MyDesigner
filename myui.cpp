@@ -1,14 +1,16 @@
 #include "slidenavigationplugin.h"
-#include "treenavigationbarplugin.h"
+#include "navlistviewplugin.h"
 #include "colorprogressbarplugin.h"
+
 #include "myui.h"
 
 MyUI::MyUI(QObject *parent)
     : QObject(parent)
 {
     m_widgets.append(new SlidenavigationPlugin(this));
-    m_widgets.append(new TreeNavigationBarPlugin(this));
+    m_widgets.append(new NavListViewPlugin(this));
     m_widgets.append(new ColorProgressBarPlugin(this));
+
 
 }
 

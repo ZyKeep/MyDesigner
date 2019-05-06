@@ -3,10 +3,10 @@ TARGET      = $$qtLibraryTarget(myuiplugin)
 TEMPLATE    = lib
 
 HEADERS     = slidenavigationplugin.h  myui.h\
-               treenavigationbarplugin.h \
+    navlistviewplugin.h \
     colorprogressbarplugin.h
 SOURCES     = slidenavigationplugin.cpp  myui.cpp\
-               treenavigationbarplugin.cpp \
+    navlistviewplugin.cpp   \
     colorprogressbarplugin.cpp
 RESOURCES   = icons.qrc
 LIBS        += -L. 
@@ -20,6 +20,11 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 target.path = $$[QT_INSTALL_PLUGINS]/designer
 INSTALLS    += target
 
-include(treenavigationbar.pri)
+
 include(slidenavigation.pri)
 include(colorprogressbar.pri)
+include(navlistview.pri)
+
+
+DISTFILES +=
+
