@@ -2,6 +2,11 @@
 #include "navlistviewplugin.h"
 #include "colorprogressbarplugin.h"
 #include "mybuttonbarplugin.h"
+#include "animationbuttonplugin.h"
+#include "qnavigationwidgetplugin.h"
+#include "lightpointplugin.h"
+#include "mygraphicsviewplugin.h"
+#include "qswitchbuttonplugin.h"
 #include "myui.h"
 
 MyUI::MyUI(QObject *parent)
@@ -11,6 +16,11 @@ MyUI::MyUI(QObject *parent)
     m_widgets.append(new NavListViewPlugin(this));
     m_widgets.append(new ColorProgressBarPlugin(this));
     m_widgets.append(new MyButtonBarPlugin(this));
+    m_widgets.append(new AnimationButtonPlugin(this));
+    m_widgets.append(new QNavigationWidgetPlugin(this));
+    m_widgets.append(new LightPointPlugin(this));
+    m_widgets.append(new MyGraphicsViewPlugin(this));
+    m_widgets.append(new QSwitchButtonPlugin(this));
 
 }
 

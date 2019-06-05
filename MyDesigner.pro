@@ -4,10 +4,16 @@ TEMPLATE    = lib
 
 HEADERS     = slidenavigationplugin.h  myui.h\
     navlistviewplugin.h mybuttonbarplugin.h\
-    colorprogressbarplugin.h
+animationbuttonplugin.h lightpointplugin.h\
+    colorprogressbarplugin.h  mygraphicsviewplugin.h\
+qswitchbuttonplugin.h\
+    qnavigationwidgetplugin.h
 SOURCES     = slidenavigationplugin.cpp  myui.cpp\
     navlistviewplugin.cpp   mybuttonbarplugin.cpp\
-    colorprogressbarplugin.cpp
+animationbuttonplugin.cpp lightpointplugin.cpp\
+    colorprogressbarplugin.cpp mygraphicsviewplugin.cpp\
+qswitchbuttonplugin.cpp\
+    qnavigationwidgetplugin.cpp
 RESOURCES   = icons.qrc
 LIBS        += -L. 
 
@@ -25,6 +31,11 @@ include(slidenavigation.pri)
 include(colorprogressbar.pri)
 include(navlistview.pri)
 include(mybuttonbar.pri)
+include(animationbutton.pri)
+include(qnavigationwidget.pri)
+include(lightpoint.pri)
+include(mygraphicsview.pri)
+include(qswitchbutton.pri)
 
 DISTFILES +=
 
