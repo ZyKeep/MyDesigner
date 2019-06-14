@@ -59,7 +59,7 @@ public:
     void setLanguage(bool isEngLish);
     //初始化页面
     void init(int* w, int* h,int row, int col,int pageCount);
-
+    void setMaxInValue(int x, int y);
 
     void upCreatWIN_layer(const int& id);
     void upDelWin_layer(const int& id);
@@ -77,12 +77,18 @@ public:
     void creatPage(int &order, QRectF& rect);
 
     void clear();
-    void clearInit();
-    int getLayerById(const int& id){return m_WIN_layer[id];}
+
+    int getLayerById(const int& id);
 
     void UpLayerByUser() {emit upItemLayer();}
 
+    //================================================
+    void Switch_setting_window(QObject* item);
 
+    QList<int> Item_Message(QObject* item);
+    QList<int> LED_CH(int& id,int& count);
+    QList<int> LED_Overlay();
+    QList<int> LED_Item(int & id, int& frameOn, QList<int>& frame);
 private:
     bool upWIN_layer(const int& id,  int new_);//更新窗口层次数组
 private:
@@ -96,6 +102,7 @@ private:
 
 signals:
     void upItemLayer();
+    void S_setting_window(const QList<int>);
 public slots:
     void enlarge();
     void setTopLayer();//修改层次
@@ -115,7 +122,14 @@ public:
     int dm_max_x;
     int dm_max_y;
 
+    int in_max_x;//输入的x
+    int in_max_y;//输入的y
+    int m_INCardCount;//输入卡计算
+
+
+
     int m_COUNTWIN;//窗口数目
+
     QVector<int> m_WIN_layer;//窗口的层次,下标表示win id， 内容是layer, 0代表没有被使用
 
 };

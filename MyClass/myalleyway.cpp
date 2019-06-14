@@ -97,7 +97,7 @@ bool MyPage::repalceToPage(const int &id, const QRect &rect_, const QRect& all_r
     double h = rect_.height() / all_h;
 
     rect.m_in_rect = QRectF(x,y,w,h);
-  //  qDebug()<<rect.m_in_rect;
+    //  qDebug()<<rect.m_in_rect;
 
     addToPage(id, rect);
 
@@ -126,7 +126,7 @@ void permutation(char* str,int length,int & index)
         char s = str[length];
         for(int i=length -1;i >= 0;i--)
             list<<(s- str[i] -1);
-     //   qDebug()<<"list = "<<list<<"----"<<index;//kankan
+        //   qDebug()<<"list = "<<list<<"----"<<index;//kankan
 
         MyPage::m_ARRANGE[list] = index++;
     }while(next_permutation(str,str+length));
@@ -169,51 +169,72 @@ void MyAlleyway::setLanguage(bool isEngLish)
 
 MyAlleyway::~MyAlleyway()
 {
-     clearInit();
+
+    m_page.clear();
+    m_WIN_layer.clear();
+
+
 }
 
-//初始化页面数据
+//初始化页面数据,请在外部删除数据
 void MyAlleyway::init(int* w, int* h,int row, int col,int pageCount)
 {
+    m_page.clear(); //清除数据
     //将一块分为几个页面
 
     m_MAXPAGE = row*col;
 
     m_row = row;
     m_col = col;
+
+    dm_max_x = 0;
+    dm_max_y = 0;
     //计算页面矩阵
     int j_add = 0;
+    int w_add = 0;
     for(int j = 0, k = 0; j < row; ++j)
     {
-        int w_add = 0;
+        w_add = 0;
         for(int i = 0; i < col; ++i)
         {
-            m_page.push_back(MyPage());
 
+            m_page.push_back(MyPage());
             m_page[k].m_Ch_Overlay = 0;
             m_page[k++].m_page = QRect(QPoint(w_add,j_add), QSize(w[i],h[j]));
             w_add += w[i];
         }
         j_add += h[j];
-    }
 
-    dm_max_x = 0;
-    for(int i = 0; i< col; ++i)
-    {
-        dm_max_x += w[i];
     }
-
-    dm_max_y = 0;
-    for(int i = 0; i< row; ++i)
-    {
-        dm_max_y += h[i];
-    }
+    dm_max_y = j_add;
+    dm_max_x = w_add;
 
     //每个页面的最大容量
     MyPage::m_MAXCount = pageCount;
 
+    m_INCardCount = (pageCount == 4? 1: 2);
+
+    in_max_x = 1920;
+    in_max_y = 1080;
+
     m_COUNTWIN = 0;//当前窗口数目
 }
+
+
+
+/*******************************
+ * @Introduce: 生成数值的范围，依据输出分辨率
+ * @Parameter: x = 宽， y = 高
+ * @Result:
+ *******************************/
+void MyAlleyway::setMaxInValue(int x, int y)
+{
+    in_max_x = x;
+    in_max_y = y;
+}
+
+
+
 
 /*******************************
  * @Introduce: 创建页面内容
@@ -236,6 +257,12 @@ QRect MyAlleyway::creatPage(int& order)
     return QRect(0,0,0,0);
 }
 
+/*******************************
+ * @Introduce:依据鼠标点所在的位置在其页面上创建项
+ * @Parameter: order = 项的标识， point = 点坐标
+ * @Result: order = -1 : 点不在有效区域内， order = -2： 当前选中位置满了
+ *******************************/
+
 QRect MyAlleyway::creatPage(int& order,const QPoint &point)
 {
     for(int j = 0; j < m_MAXPAGE; ++j)
@@ -247,9 +274,11 @@ QRect MyAlleyway::creatPage(int& order,const QPoint &point)
                 m_page[j].CreatWinInPage(order);
 
                 upCreatWIN_layer(order);
-       //         qDebug()<< m_page[j].m_win[order].m_rect;
+                //         qDebug()<< m_page[j].m_win[order].m_rect;
                 return m_page[j].m_win[order].m_rect;//大小
             }
+            order = -2;
+            return QRect(0,0,0,0);
         }
     }
     order = -1;
@@ -332,50 +361,56 @@ void MyAlleyway::clearAll_win()
 //0表示没有， 1-N, new_ = m_COUNTWIN+1 表示删除
 bool MyAlleyway::upWIN_layer(const int &id,int new_)
 {
-    if(id < m_WIN_layer.size())
+    Q_ASSERT(id < m_WIN_layer.size());
+
+    int older = m_WIN_layer[id];
+    m_WIN_layer[id] = new_;//添加
+
+    //  qDebug()<<id<<' '<<older<<" "<<new_;
+    if(older == new_)
+        return false;
+
+    if(older == 0)
     {
-        int older = m_WIN_layer[id];
-        m_WIN_layer[id] = new_;//添加
-
-      //  qDebug()<<id<<' '<<older<<" "<<new_;
-        if(older == new_)
-            return false;
-
-        if(new_ == 0)
-        {
-            new_ = m_COUNTWIN;
-        }
-        int operatorI = older < new_ ? -1 : 1;
-        if(new_ < older)
-        { //交换
-            swap(older,new_);
-        }
-
-        for(int i = 0; i < m_WIN_layer.size(); ++i)
-        {
-            if(m_WIN_layer[i] == 0 || i == id)
-            {
-                continue;
-            }
-            if(m_WIN_layer[i] >= older && m_WIN_layer[i]<= new_)
-            {
-                m_WIN_layer[i] += operatorI;
-            }
-        }
+        return true;
     }
 
-    qDebug()<<m_WIN_layer;
+
+    if(new_ == 0)
+    {
+        new_ = m_COUNTWIN;
+    }
+
+
+    int operatorI = older < new_ ? -1 : 1;
+    if(new_ < older)
+    { //交换
+        swap(older,new_);
+    }
+
+    for(int i = 0; i < m_WIN_layer.size(); ++i)
+    {
+        if(m_WIN_layer[i] == 0 || i == id)
+        {
+            continue;
+        }
+        if(m_WIN_layer[i] >= older && m_WIN_layer[i]<= new_)
+        {
+            m_WIN_layer[i] += operatorI;
+        }
+    }
+    qDebug()<<"m_WIN_layer up = "<<m_WIN_layer;
     return true;
 }
 
 void MyAlleyway::upPageData()
 {
-
+    qDebug()<<"m_WIN_layer "<<m_WIN_layer;
     for(int i = 0; i < m_MAXPAGE; ++i)
     {
         QMap<int,int> layer_ch;
         QMap<int,MyRect>::iterator it;
-     //   qDebug()<<m_page[i].m_win.keys();
+        //   qDebug()<<m_page[i].m_win.keys();
         for(it = m_page[i].m_win.begin(); it != m_page[i].m_win.end(); ++it)
         {
             int layer =  m_WIN_layer[it.key()];
@@ -384,7 +419,7 @@ void MyAlleyway::upPageData()
 
 
         if(layer_ch.size()){
-         //   qDebug()<<"layer_ch = "<<layer_ch;
+            //   qDebug()<<"layer_ch = "<<layer_ch;
             QList<int> list;
             for(int j = 0; j < MyPage::m_MAXCount; ++j)
                 list<<-1;
@@ -420,11 +455,14 @@ void MyAlleyway::clear()
 
 }
 
-void MyAlleyway::clearInit()
+
+int MyAlleyway::getLayerById(const int &id)
 {
-    clearAll_win();
-    m_page.clear();
-    qDebug()<<"clear init";
+    if(id < m_WIN_layer.size())
+    {
+        return m_WIN_layer[id];
+    }
+    return -1;
 }
 
 
@@ -497,12 +535,11 @@ void MyAlleyway::enlarge()
         return;
     }
 
-
-
     QRect rect(rect_.x(), rect_.y(), rect_.width(), rect_.height());
     //已经是满屏
     if(dm_max_x == rect.width() && dm_max_y == rect.height())
     {
+        qDebug()<<" is full befor max";
         return;
     }
 
@@ -554,7 +591,7 @@ void MyAlleyway::enlarge()
 
     QRectF newRect(QPointF(stat),QSizeF(w_add, j_add));
     qDebug()<<"newRect = "<<newRect;
-    QMetaObject::invokeMethod(item, "resetRect", Qt::DirectConnection,
+    QMetaObject::invokeMethod(item, "resetRect_in", Qt::DirectConnection,
                               Q_ARG(QRectF, newRect));
 
 
@@ -573,7 +610,9 @@ void MyAlleyway::setTopLayer()//修改层次
     }
     int layer = m_COUNTWIN;
     if(upWIN_layer(id,layer))
-        emit upItemLayer();
+        emit upItemLayer();//更新显示
+
+    Switch_setting_window(item);
 }
 
 void MyAlleyway::setButtonLayer()
@@ -590,7 +629,189 @@ void MyAlleyway::setButtonLayer()
     int layer = 1;
     if(upWIN_layer(id,layer))
         emit upItemLayer();
+
+    Switch_setting_window(item);
+
 }
+
+
+//=========切换器：设置窗口_OL（0A）==================
+void MyAlleyway::Switch_setting_window(QObject *item)
+{
+    qDebug()<<"in setting windows";
+    QList<int> list;
+    list = Item_Message(item);
+    emit S_setting_window(list);
+    qDebug()<<"==================================";
+}
+
+/*******************************
+ * @Introduce: 获取项的内容
+ * @Parameter: 项
+ * @Result: 内容： id isopen lock in
+ *******************************/
+QList<int> MyAlleyway::Item_Message(QObject* item)
+{
+    QList<int> list;
+    int id;
+    //基础信息
+    if (item->property("m_lock").isValid()){
+
+        id = item->property("m_id").value<int>();
+        list<<id;
+
+        list<< (getLayerById(id) == 0 ? 0 : 1);//isOpen
+
+        list<<item->property("m_lock").value<bool>();
+        list<< item->property("m_in").value<int>();
+
+        int count;
+        list<<this->LED_CH(id,count);
+
+        QRectF value = item->property("dm_rect").value<QRectF>();
+        list<<value.x();
+        list<<value.y();
+        list<<value.width();
+        list<<value.height();
+
+        list<<LED_Overlay();
+
+        list<<count;
+
+        int frameOn = item->property("m_frameOn").value<bool>();
+        {
+            QList<int> frame;
+            frame<<item->property("m_framSize").value<int>();
+            frame<< item->property("m_frameRed").value<int>();
+            frame<< item->property("m_frameGreen").value<int>();
+            frame<<item->property("m_frameBlue").value<int>();
+
+            LED_Item(id,frameOn,frame);
+        }
+
+
+
+    }
+    return list;
+
+}
+
+QList<int> MyAlleyway::LED_CH(int &id,int& count)
+{
+    QList<int> list;
+    count = 0;
+    for(int i = 0; i < m_MAXPAGE; ++i)
+    {
+        if(m_page[i].m_win.find(id) == m_page[i].m_win.end())
+        {
+            list<<0x0f; //表示没有
+        }
+        else
+        {
+            list<<m_page[i].m_win[id].m_ch; //0 ~ n
+            ++count;
+        }
+    }
+    for(int i  = m_MAXPAGE; i < 64; ++i)
+    {
+        list<<0x0f;
+    }
+    return list;
+}
+
+QList<int> MyAlleyway::LED_Overlay()
+{
+    QList<int> list;
+    int icount = m_WIN_layer.size();
+    for(int i = 0; i < icount; ++i)
+    {
+        list<<m_WIN_layer[i];
+    }
+    for(int i  = icount; i < 64; ++i)
+    {
+        list<<0;
+    }
+    return list;
+}
+
+
+QList<int> MyAlleyway::LED_Item(int &id, int &frameOn, QList<int> &frame)
+{
+    QList<int> list;
+    for(int i = 0; i < m_MAXPAGE; ++i)
+    {
+        if(m_page[i].m_win.find(id) != m_page[i].m_win.end())
+        {
+            list<<(i / m_INCardCount); //输出卡
+            MyRect myrect = m_page[i].m_win[id];
+            list<<myrect.m_in_rect.x()*in_max_x;
+            list<<myrect.m_in_rect.y()*in_max_y;
+            list<<myrect.m_in_rect.width()*in_max_x;
+            list<<myrect.m_in_rect.height()*in_max_y;
+
+            list<<myrect.m_rect.x();
+            list<<myrect.m_rect.y();
+            list<<myrect.m_rect.width();
+            list<<myrect.m_rect.height();
+
+            //边框计算
+            if(frameOn == 0)
+            {
+                list<<0;
+            }
+            else
+            {
+                if(myrect.m_in_rect.width() == 1 && myrect.m_in_rect.height() == 1)
+                {
+                    list<<(0x0f);//整体在一起
+                }
+                else if(myrect.m_rect.width() == m_page[i].m_page.width() &&
+                        myrect.m_rect.height() == m_page[i].m_page.height())
+                {
+                    list<<0;//全包含
+                }
+                else{
+
+                    int value = 0x0f;
+
+                    if(myrect.m_rect.top() == m_page[i].m_page.top()) //上边界重合
+                    {
+                        value &= 11;
+                    }
+
+
+                    if(myrect.m_rect.right() == m_page[i].m_page.right())
+                    {
+                        value &= 13;
+                    }
+
+                    if(myrect.m_rect.bottom() == m_page[i].m_page.bottom())
+                    {
+                        value &= 7;
+                    }
+
+                    if(myrect.m_rect.left() == m_page[i].m_page.left())
+                    {
+                        value &= 14;
+                    }
+
+                    list<<value;
+
+                }
+
+
+            }
+
+            list<<frame;
+        }
+    }
+    qDebug()<<list;
+
+
+    return list;
+}
+
+//=======================================================
 
 #include <QDataStream>
 QDataStream &operator<<(QDataStream &out, const MyRect &r)
@@ -621,7 +842,7 @@ QDataStream &operator>>(QDataStream &in, MyPage &page)
 QDataStream &operator<<(QDataStream &out, const MyAlleyway &way)
 {
     out<<way.m_COUNTWIN<<way.m_WIN_layer;
-    qDebug()<<"out ALLEay = " <<way.m_WIN_layer;
+
     for(int i = 0; i < way.m_MAXPAGE; ++i)
     {
         out<<way.m_page[i];
@@ -632,7 +853,7 @@ QDataStream &operator<<(QDataStream &out, const MyAlleyway &way)
 QDataStream &operator>>(QDataStream &in, MyAlleyway &way)
 {
     in>>way.m_COUNTWIN>>way.m_WIN_layer;
-    qDebug()<<"cin ALLEay = " <<way.m_WIN_layer;
+
     for(int i = 0; i < way.m_MAXPAGE; ++i)
     {
         in>>way.m_page[i];
@@ -640,6 +861,9 @@ QDataStream &operator>>(QDataStream &in, MyAlleyway &way)
 
     return in;
 }
+
+
+
 
 
 

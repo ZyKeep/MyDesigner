@@ -58,7 +58,8 @@ public:
 
 
     explicit BoxItem(const QRectF &rect, QGraphicsScene *scene,
-                     bool lock,int id, bool send = false);
+                     bool lock,int id);
+    ~BoxItem();
     int type() const { return QGraphicsItem::UserType+1; }
 
     double angle() const { return m_angle; }
@@ -83,6 +84,7 @@ public:
 
 signals:
     void dirty();
+    void delIt();
     void setTopLayer();//修改层次
     void setButtonLayer();
     void enlarge();//放大
@@ -97,18 +99,19 @@ public slots:
     void setShear(double shearHorizontal, double shearVertical);
 
     //修改rect的值
-    void resetRect(QRectF rect);
-    void setSize(const QSize& size);
+    void resetRect(QRectF rect);//对外
+    void resetRect_in(QRectF rect);
+
     void setLock(const bool& lock){m_lock = lock;}
     void setId(int id){m_id = id;}
-    void setIn(const int& in){m_in = in;}
+    void setIn(const int& in);
 
-    void setFrameOn(const bool& on){m_frameOn = on;}
-    void setFrameSize(const int& size) {m_framSize = size;}
+    void setFrameOn(const bool& on);
+    void setFrameSize(const int& size);
     void setFrameColor(int r, int g, int b);
 
-
-
+    void setFrame(bool on, int size, int r, int g,int b);
+    void setLock_out(const bool& lock);
 
     void edit();
 
@@ -117,8 +120,9 @@ public slots:
     void reduction();//还原
 
 
+
     void a_setLock(){setLock(!m_lock);}
-    void a_setframe(){m_frameOn = !m_frameOn;}
+    void a_setframe(){ m_frameOn = !m_frameOn;}
 
 protected:
     QVariant itemChange(GraphicsItemChange change,
@@ -132,13 +136,14 @@ protected:
     void paint(QPainter *painter,
                const QStyleOptionGraphicsItem *option, QWidget *widget);
 
+    void dragEnterEvent(QDragEnterEvent *e);
+    void dropEvent(QDropEvent *event);
+
 
     void mouseDoubleClickEvent(QGraphicsSceneMouseEvent*) { edit(); }
     void contextMenuEvent(QGraphicsSceneContextMenuEvent*) { edit(); }
 private:
     void chargeRect(const QRectF& rect);
-public:
-    bool m_send;
 private:
     QAction *createMenuAction(QMenu *menu, const QIcon &icon,
                               const QString &text, bool checked,bool isAble = false,
@@ -160,6 +165,8 @@ private:
     QRectF m_lastrect;//记录上次的位置信息
     bool m_lock;//锁住状态
     int m_id;//win编号
+
+public:
     int m_in;
     bool m_frameOn;//边框开关
     int m_framSize;//线框宽度

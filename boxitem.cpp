@@ -36,9 +36,9 @@ bool isDirtyChange(QGraphicsItem::GraphicsItemChange change)
 }
 
 BoxItem::BoxItem(const QRectF &rect_, QGraphicsScene *scene,
-                 bool lock,int id, bool send)
+                 bool lock,int id)
     : QObject(), QGraphicsRectItem(),
-      m_resizing(false),m_lock(lock),m_id(id),m_send(send),
+      m_resizing(false),m_lock(lock),m_id(id),
       m_frameOn(false),m_framSize(1),m_frameRed(0),m_frameGreen(0),m_frameBlue(0),
       m_angle(0.0), m_shearHorizontal(0.0), m_shearVertical(0.0),m_in(0)
 {
@@ -58,12 +58,17 @@ BoxItem::BoxItem(const QRectF &rect_, QGraphicsScene *scene,
 
 
     scene->addItem(this);
-    setSelected(!send);//设定
     setFocus();
-
+    setSelected(true);
     m_charge = false;
     AutoColor();
     initMenu();
+}
+
+BoxItem::~BoxItem()
+{
+    qDebug()<<"delete item";
+
 }
 
 
@@ -94,22 +99,65 @@ void BoxItem::setAngle(double angle)
 //=-=================+调整大小
 void BoxItem::resetRect(QRectF rect)
 {
-    qDebug()<<"in resert"<<rect;
-    if(m_lock)
+    if(m_lock || !isSelected())
         return;
+
+    resetRect_in(rect);
+
+}
+
+void BoxItem::resetRect_in(QRectF rect)
+{
     adjustRect(rect);
     setRect(rect);
     setPos(0,0);
     m_charge = true;
     send_Dirty();
-
-
 }
 
-void BoxItem::setSize(const QSize& size)
+
+
+void BoxItem::setIn(const int& in){
+    if(m_lock ||!isSelected())
+        return;
+    m_in = in;
+}
+
+
+void BoxItem::setFrameOn(const bool& on){
+    if(m_lock ||!isSelected())
+        return;
+    m_frameOn = on;
+}
+void BoxItem::setFrameSize(const int& size) {
+    if(m_lock ||!isSelected())
+        return;
+    m_framSize = size;
+}
+
+void BoxItem::setFrameColor(int r, int g, int b)
 {
-    resetRect(QRectF(QPointF(dm_rect.topLeft()),
-                     QSizeF(size.width(), size.height())));
+    if(m_lock ||!isSelected())
+        return;
+    m_frameRed = r;
+    m_frameGreen = g;
+    m_frameBlue = b;
+}
+void BoxItem::setLock_out(const bool &lock)
+{
+    if(!isSelected())
+        return;
+    setLock(lock);
+}
+
+
+void BoxItem::setFrame(bool on, int size, int r,int g,int b)
+{
+    m_frameOn = on;
+    m_framSize = size;
+    m_frameRed = r;
+    m_frameGreen = g;
+    m_frameBlue = b;
 }
 
 void BoxItem::setShear(double shearHorizontal, double shearVertical)
@@ -121,6 +169,7 @@ void BoxItem::setShear(double shearHorizontal, double shearVertical)
         updateTransform();
     }
 }
+
 
 
 void BoxItem::updateTransform()
@@ -320,10 +369,6 @@ void BoxItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 
 void BoxItem::send_Dirty()
 {
-    if(m_send)
-    {
-        return;
-    }
     if(m_charge){
         QPointF tPos = this->pos() + this->rect().topLeft();
         QRectF f_rect = this->rect();
@@ -337,9 +382,9 @@ void BoxItem::send_Dirty()
         {
             m_lastrect = dm_rect;
             dm_rect = rect;
-            emit  dirty();//传递要不要更新信息
+            //    MyAlleyway::getInstance()->Switch_setting_window(dynamic_cast<QObject*>(this));
+            emit dirty();
         }
-
 
     }
     m_charge = false;
@@ -356,14 +401,14 @@ void BoxItem::initMenu()
     connect(showLock_1, SIGNAL(triggered()),
             this, SLOT(a_setLock()));
 
-    menuEngLish.addAction(QIcon("1.png"), QStringLiteral("enlarge"),
-                          this,SIGNAL(enlarge()));
+    menuEngLish.addAction(QIcon("1.png"), QStringLiteral("Frame"),
+                          this,SLOT(a_setframe()));
+    menuChinese.addAction(QIcon("1.png"), QStringLiteral("边框"),
+                          this,SLOT(a_setframe()));
+
+
     menuEngLish.addAction(QIcon("1.png"), QStringLiteral("reduction"),
                           this,SLOT(reduction()));
-
-
-    menuChinese.addAction(QIcon("1.png"), QStringLiteral("放大"),
-                          this,SIGNAL(enlarge()));
     menuChinese.addAction(QIcon("1.png"), QStringLiteral("还原"),
                           this,SLOT(reduction()));
 
@@ -378,16 +423,12 @@ void BoxItem::initMenu()
                           this,SIGNAL(setButtonLayer()));
 
 
-    QAction *a_setframe = createMenuAction(&menuEngLish, QIcon(),
-                                           "Frame", m_frameOn, true);
-    QAction *showframe_1 = createMenuAction(&menuChinese, QIcon(),
-                                            QStringLiteral("边框"), m_frameOn, true);
+    menuEngLish.addAction(QIcon("1.png"), QStringLiteral("Frame"),
+                          this,SLOT(a_setframe()));
+    menuChinese.addAction(QIcon("1.png"), QStringLiteral("边框"),
+                          this,SLOT(a_setframe()));
 
 
-    connect(a_setframe, SIGNAL(triggered()),
-            this, SLOT(a_setframe()));
-    connect(showframe_1, SIGNAL(triggered()),
-            this, SLOT(a_setframe()));
 }
 
 
@@ -410,8 +451,11 @@ void BoxItem::reNew() //拒绝修改
 
 void BoxItem::reduction()//还原
 {
-    resetRect(m_lastrect);//重写
+    resetRect_in(m_lastrect);//重写
+
 }
+
+
 
 QAction *BoxItem::createMenuAction(QMenu *menu, const QIcon &icon,
                                    const QString &text, bool checked,bool isAble, QActionGroup *group,
@@ -430,9 +474,17 @@ void BoxItem::paint(QPainter *painter,
                     const QStyleOptionGraphicsItem* i, QWidget* w)
 {
     QGraphicsRectItem::paint(painter,i,w);
+
+    if(m_frameOn)
+    {
+        //将边框的大小+7便于用户查看，使用100的透明度方便用户查看是否选中
+        painter->setPen(QPen(QColor(m_frameRed,m_frameGreen,m_frameBlue,80),m_framSize+7,Qt::SolidLine));
+        painter->drawRect(this->rect());
+    }
+
     if(m_lock){
         painter->setPen(QPen(Qt::black,8,Qt::SolidLine));
-        painter->setBrush(Qt::darkGray);
+        painter->setBrush(Qt::black);
         int m_count = dm_rect.size().width() < dm_rect.size().height() ?
                     dm_rect.size().width() : dm_rect.size().height();
         m_count /= 5;
@@ -450,12 +502,9 @@ void BoxItem::paint(QPainter *painter,
         painter->drawRect(rect2);
     }
 
-    if(m_frameOn)
-    {
-        //将边框的大小+7便于用户查看，使用100的透明度方便用户查看是否选中
-        painter->setPen(QPen(QColor(m_frameRed,m_frameGreen,m_frameBlue,100),m_framSize+7,Qt::SolidLine));
-        painter->drawRect(this->rect());
-    }
+    this->scene()->update();
+  //  update();//刷新
+
 }
 
 void BoxItem::AutoColor()
@@ -464,13 +513,21 @@ void BoxItem::AutoColor()
     QGraphicsRectItem::setBrush(color.lighter(100));
 }
 
-
-void BoxItem::setFrameColor(int r, int g, int b)
+#include <QMimeData>
+#include <QDragEnterEvent>
+void BoxItem::dragEnterEvent(QDragEnterEvent *event)
 {
-    m_frameRed = r;
-    m_frameGreen = g;
-    m_frameBlue = b;
+    event->setDropAction(Qt::MoveAction);
+    event->accept();
 }
+
+void BoxItem::dropEvent(QDropEvent *event)
+{
+    qDebug()<<"emt = "<<event->mimeData()->data("application/tree");
+}
+
+
+
 
 
 //读写重载
@@ -488,24 +545,16 @@ QDataStream &operator<<(QDataStream &out, const BoxItem &boxItem)
 QDataStream &operator>>(QDataStream &in, BoxItem &boxItem)
 {
     //在初始化的时候被加入
-//    QRectF rect;
-//    bool lock;
-//    int id;
-    int in_;
+    //    QRectF rect;
+    //    bool lock;
+    //    int id;
 
-    bool on;
-    int size;
-    int r;
-    int g;
-    int b;
     double z;
-    in >>in_>>on>>size>>r>>g>>b>>z;
-    boxItem.setIn(in_);
-    boxItem.setFrameOn(on);
-    boxItem.setFrameSize(size);
-    boxItem.setFrameColor(r,g,b);
+    in >>boxItem.m_in>>boxItem.m_frameOn>>boxItem.m_framSize
+            >>boxItem.m_frameRed>>boxItem.m_frameGreen>>boxItem.m_frameBlue>>z;
+    boxItem.setZValue(z);
     boxItem.AutoColor();
-    boxItem.m_send = false;
+
     return in;
 }
 
