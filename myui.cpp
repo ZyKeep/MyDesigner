@@ -7,6 +7,8 @@
 #include "lightpointplugin.h"
 #include "mygraphicsviewplugin.h"
 #include "qswitchbuttonplugin.h"
+#include "mynavtreeplugin.h"
+#include "mytimertableviewplugin.h"
 #include "myui.h"
 
 MyUI::MyUI(QObject *parent)
@@ -21,6 +23,8 @@ MyUI::MyUI(QObject *parent)
     m_widgets.append(new LightPointPlugin(this));
     m_widgets.append(new MyGraphicsViewPlugin(this));
     m_widgets.append(new QSwitchButtonPlugin(this));
+    m_widgets.append(new MyNavTreePlugin(this));
+    m_widgets.append(new MyTimerTableViewPlugin(this));
 
 }
 

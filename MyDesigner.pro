@@ -6,14 +6,18 @@ HEADERS     = slidenavigationplugin.h  myui.h\
     navlistviewplugin.h mybuttonbarplugin.h\
 animationbuttonplugin.h lightpointplugin.h\
     colorprogressbarplugin.h  mygraphicsviewplugin.h\
-qswitchbuttonplugin.h\
+qswitchbuttonplugin.h mynavtreeplugin.h \
+mytimertableviewplugin.h\
     qnavigationwidgetplugin.h
+
 SOURCES     = slidenavigationplugin.cpp  myui.cpp\
     navlistviewplugin.cpp   mybuttonbarplugin.cpp\
 animationbuttonplugin.cpp lightpointplugin.cpp\
-    colorprogressbarplugin.cpp mygraphicsviewplugin.cpp\
-qswitchbuttonplugin.cpp\
+    colorprogressbarplugin.cpp mygraphicsviewplugin.cpp \
+mytimertableviewplugin.cpp\
+qswitchbuttonplugin.cpp mynavtreeplugin.cpp\
     qnavigationwidgetplugin.cpp
+
 RESOURCES   = icons.qrc
 LIBS        += -L. 
 
@@ -36,6 +40,8 @@ include(qnavigationwidget.pri)
 include(lightpoint.pri)
 include(mygraphicsview.pri)
 include(qswitchbutton.pri)
+include(mynavtree.pri)
+include(mytimertableview.pri)
 
 DISTFILES +=
 

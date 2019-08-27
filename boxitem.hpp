@@ -44,6 +44,9 @@ class BoxItem : public QObject, public QGraphicsRectItem
 
 
     Q_PROPERTY(QRectF dm_rect READ getRect WRITE resetRect)
+    Q_PROPERTY(QRect m_in_rect READ getInRect WRITE setInRect)
+
+
     Q_PROPERTY(bool m_lock READ lock WRITE setLock)
     Q_PROPERTY(int m_id READ id WRITE setId)
     Q_PROPERTY(int m_in READ in WRITE setIn)
@@ -57,8 +60,8 @@ class BoxItem : public QObject, public QGraphicsRectItem
 public:
 
 
-    explicit BoxItem(const QRectF &rect, QGraphicsScene *scene,
-                     bool lock,int id);
+    explicit BoxItem(const QRectF &rect,const QRect &rect_in, QGraphicsScene *scene,
+                     bool lock,int id,int in = 0,bool fra = false);
     ~BoxItem();
     int type() const { return QGraphicsItem::UserType+1; }
 
@@ -68,6 +71,9 @@ public:
 
 
     QRectF getRect() const{return this->dm_rect;}
+
+    QRect  getInRect() const{return this->m_in_rect;}
+
     bool lock() const { return m_lock; }
     int id() const { return m_id; }
     int in() const { return m_in; }
@@ -78,6 +84,7 @@ public:
     int frameGreen() const { return m_frameGreen; }
     int frameBlue() const { return m_frameBlue; }
 
+    void writeIn(int in) {if(m_lock) return; m_in = in;}
 
     Q_INVOKABLE void setZIn(const int& z){this->setZValue(z);}
     void AutoColor();
@@ -88,6 +95,12 @@ signals:
     void setTopLayer();//修改层次
     void setButtonLayer();
     void enlarge();//放大
+    void fine_tuning(const int);//微调
+    void fine_tuning_data(const QList<int>);//微调数据
+
+    void updata_page();
+
+    void move_rect();//更新rect的值
 public slots:
     void setPen(const QPen &pen);
     void setBrush(const QBrush &brush);
@@ -101,6 +114,8 @@ public slots:
     //修改rect的值
     void resetRect(QRectF rect);//对外
     void resetRect_in(QRectF rect);
+    void resetRectIn_in(QRect rect);
+    void setInRect(QRect rect){m_in_rect = rect;}
 
     void setLock(const bool& lock){m_lock = lock;}
     void setId(int id){m_id = id;}
@@ -111,7 +126,6 @@ public slots:
     void setFrameColor(int r, int g, int b);
 
     void setFrame(bool on, int size, int r, int g,int b);
-    void setLock_out(const bool& lock);
 
     void edit();
 
@@ -119,16 +133,19 @@ public slots:
 
     void reduction();//还原
 
+    void renlarge(){if(m_lock)return; emit enlarge();} //放大
+    void rsetTopLayer(){if(m_lock)return; emit setTopLayer();}
+    void rsetButtonLayer(){if(m_lock)return; emit setButtonLayer();}
 
-
-    void a_setLock(){setLock(!m_lock);}
-    void a_setframe(){ m_frameOn = !m_frameOn;}
+    void a_setframe();
+    void setfine_tuning();
+    void setfine_tuning_data();
 
 protected:
     QVariant itemChange(GraphicsItemChange change,
                         const QVariant &value);
-    void keyPressEvent(QKeyEvent *event);
-    void keyReleaseEvent(QKeyEvent *event);
+
+    void hoverMoveEvent(QGraphicsSceneHoverEvent *event);
     void mousePressEvent(QGraphicsSceneMouseEvent *event);
     void mouseMoveEvent(QGraphicsSceneMouseEvent *event);
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event);
@@ -136,14 +153,14 @@ protected:
     void paint(QPainter *painter,
                const QStyleOptionGraphicsItem *option, QWidget *widget);
 
-    void dragEnterEvent(QDragEnterEvent *e);
-    void dropEvent(QDropEvent *event);
-
+    void dragEnterEvent(QGraphicsSceneDragDropEvent *e);
+    void dropEvent(QGraphicsSceneDragDropEvent *event);
 
     void mouseDoubleClickEvent(QGraphicsSceneMouseEvent*) { edit(); }
     void contextMenuEvent(QGraphicsSceneContextMenuEvent*) { edit(); }
 private:
     void chargeRect(const QRectF& rect);
+
 private:
     QAction *createMenuAction(QMenu *menu, const QIcon &icon,
                               const QString &text, bool checked,bool isAble = false,
@@ -163,6 +180,8 @@ private:
 private:
     QRectF dm_rect; //x,y,w,h;,只是用于作为快速输出
     QRectF m_lastrect;//记录上次的位置信息
+
+
     bool m_lock;//锁住状态
     int m_id;//win编号
 
@@ -174,11 +193,15 @@ public:
     int m_frameGreen;
     int m_frameBlue;
 
+    int moveType;
+    QString singleName;
+
+    QRect m_in_rect;
 
 private:
     QMenu menuEngLish;
     QMenu menuChinese;
-
+    QPointF p_move;
 
 };
 

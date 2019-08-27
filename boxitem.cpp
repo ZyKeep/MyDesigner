@@ -35,12 +35,12 @@ bool isDirtyChange(QGraphicsItem::GraphicsItemChange change)
             change == QGraphicsItem::ItemTransformHasChanged);
 }
 
-BoxItem::BoxItem(const QRectF &rect_, QGraphicsScene *scene,
-                 bool lock,int id)
-    : QObject(), QGraphicsRectItem(),
+BoxItem::BoxItem(const QRectF &rect_, const QRect &rect_in,QGraphicsScene *scene,
+                 bool lock,int id,int in, bool frame)
+    : QObject(), QGraphicsRectItem(),m_in(in),m_in_rect(rect_in),
       m_resizing(false),m_lock(lock),m_id(id),
-      m_frameOn(false),m_framSize(1),m_frameRed(0),m_frameGreen(0),m_frameBlue(0),
-      m_angle(0.0), m_shearHorizontal(0.0), m_shearVertical(0.0),m_in(0)
+      m_frameOn(frame),m_framSize(4),m_frameRed(0),m_frameGreen(0),m_frameBlue(0),
+      m_angle(0.0), m_shearHorizontal(0.0), m_shearVertical(0.0)
 {
 
     setFlags(QGraphicsItem::ItemIsSelectable|
@@ -50,12 +50,19 @@ BoxItem::BoxItem(const QRectF &rect_, QGraphicsScene *scene,
              QGraphicsItem::ItemIsMovable|
              QGraphicsItem::ItemIsFocusable);
 
+    QString str = "";
+    if(m_in > 31)
+    {
+        str = tr("_HDMI%1").arg((m_in-32)%4 + 1); //HDMI1 - 4
+    }
+    singleName = tr("In%1%2").arg(m_in > 31? (m_in - 32)/2 + 1: m_in+1).arg(str);
+
     setPos(0,0);
     setRect(rect_);
     dm_rect = rect_;
     m_lastrect = dm_rect;
 
-
+    // m_in_rect = QRect(0,0,1920,1080);
 
     scene->addItem(this);
     setFocus();
@@ -63,11 +70,15 @@ BoxItem::BoxItem(const QRectF &rect_, QGraphicsScene *scene,
     m_charge = false;
     AutoColor();
     initMenu();
+
+    setAcceptDrops(true);
+    setAcceptHoverEvents(true);
+
+
 }
 
 BoxItem::~BoxItem()
 {
-    qDebug()<<"delete item";
 
 }
 
@@ -108,14 +119,19 @@ void BoxItem::resetRect(QRectF rect)
 
 void BoxItem::resetRect_in(QRectF rect)
 {
-    adjustRect(rect);
-    setRect(rect);
     setPos(0,0);
+    setRect(rect);
+
     m_charge = true;
     send_Dirty();
 }
 
-
+void BoxItem::resetRectIn_in(QRect rect)
+{
+    setInRect(rect);
+    m_charge = true;
+    send_Dirty();
+}
 
 void BoxItem::setIn(const int& in){
     if(m_lock ||!isSelected())
@@ -128,6 +144,9 @@ void BoxItem::setFrameOn(const bool& on){
     if(m_lock ||!isSelected())
         return;
     m_frameOn = on;
+    MyAlleyway::getInstance()->Switch_setting_window(dynamic_cast<QObject*>(this));
+
+
 }
 void BoxItem::setFrameSize(const int& size) {
     if(m_lock ||!isSelected())
@@ -143,12 +162,7 @@ void BoxItem::setFrameColor(int r, int g, int b)
     m_frameGreen = g;
     m_frameBlue = b;
 }
-void BoxItem::setLock_out(const bool &lock)
-{
-    if(!isSelected())
-        return;
-    setLock(lock);
-}
+
 
 
 void BoxItem::setFrame(bool on, int size, int r,int g,int b)
@@ -187,6 +201,15 @@ bool BoxItem::isPointContains(QPointF&newPos)
 
     QRectF rect = scene()->sceneRect();
     rect.setSize(rect.size() - this->rect().size());
+    if(rect.width() == 0)
+    {
+        rect.setWidth(0.1);
+    }
+    if(rect.height() == 0)
+    {
+        rect.setHeight(0.1);
+    }
+
     if (!rect.contains(tPos)) {
         newPos.setX(qMin(rect.right()-mPos.x(), qMax(newPos.x(), rect.left()-mPos.x())));
         newPos.setY(qMin(rect.bottom()-mPos.y(), qMax(newPos.y(), rect.top()-mPos.y())));
@@ -202,12 +225,20 @@ bool BoxItem::isRectContains(const QRectF&rect)
 
     QRectF rect1 = scene()->sceneRect();
     rect1.setSize(rect1.size() - rect.size());
+    if(rect1.width() == 0)
+    {
+        rect1.setWidth(0.1);
+    }
+    if(rect1.height() == 0)
+    {
+        rect1.setHeight(0.1);
+    }
+    qDebug()<<"rect1 = "<<rect1;
+
     //大小改变后边界判断以及大小限定
-    if (!rect1.contains(tPos) || (rect.width() < 50 && rect.height() < 50)) {
+    if (!rect1.contains(tPos) ||rect1.width() < 0 || rect1.height() < 0|| (rect.width() < 50 || rect.height() < 50)) {
         return false;
     }
-
-
     return true;
 }
 
@@ -243,8 +274,6 @@ QVariant BoxItem::itemChange(GraphicsItemChange change,
                              const QVariant &value)
 {
     if (isDirtyChange(change)){
-
-
         // value is the new position.
         QPointF newPos = value.toPointF();
         if (!isPointContains(newPos)) {
@@ -262,72 +291,137 @@ QVariant BoxItem::itemChange(GraphicsItemChange change,
 }
 
 
-void BoxItem::keyPressEvent(QKeyEvent *event)
+void BoxItem::hoverMoveEvent(QGraphicsSceneHoverEvent *event)
 {
-    if(m_lock)
-        return;
-    m_charge = false;
-    if (event->modifiers() & Qt::ShiftModifier ||
-            event->modifiers() & Qt::ControlModifier) {
-        bool move = event->modifiers() & Qt::ControlModifier;
-        bool changed = true;
-        double dx1 = 0.0;
-        double dy1 = 0.0;
-        double dx2 = 0.0;
-        double dy2 = 0.0;
-        switch (event->key()) {
-        case Qt::Key_Left:
-            if (move)
-                dx1 = -1.0;
-            dx2 = -1.0;
-            break;
-        case Qt::Key_Right:
-            if (move)
-                dx1 = 1.0;
-            dx2 = 1.0;
-            break;
-        case Qt::Key_Up:
-            if (move)
-                dy1 = -1.0;
-            dy2 = -1.0;
-            break;
-        case Qt::Key_Down:
-            if (move)
-                dy1 = 1.0;
-            dy2 = 1.0;
-            break;
-        default:
-            changed = false;
+    if(this->isSelected()){
+        p_move = event->scenePos() - dm_rect.topLeft(); //值不对
+
+        int maxHeight = dm_rect.height();
+        int maxWidth = dm_rect.width();
+
+        int top = dm_rect.height()/15;
+        int left = dm_rect.width()/15;
+        int buttom = maxHeight - top;
+        int right = maxWidth - left;
+
+        if(p_move.x() < left && p_move.y() < top && p_move.x() > 0 && p_move.y() > 0)
+        {
+            setCursor(Qt::SizeFDiagCursor);
         }
-        if (changed) {
-            QRectF rect_1 = rect().adjusted(dx1, dy1, dx2, dy2);
-            if(isRectContains(rect_1) ){
-                setRect(rect_1);
-                m_charge = true;
-                event->accept();
-            }
-            return;
+        else if(p_move.x() > right && p_move.y() < top && p_move.x() < maxWidth && p_move.y() > 0)
+        {
+            setCursor(Qt::SizeBDiagCursor);
+        }
+        else  if(p_move.x() < left &&  p_move.y() > buttom && p_move.x() > 0 && p_move.y() < maxHeight)
+        {
+            setCursor(Qt::SizeBDiagCursor);
+        }
+        else if(p_move.x() > right && p_move.y() > buttom && p_move.x() < maxWidth && p_move.y() < maxHeight)
+        {
+            setCursor(Qt::SizeFDiagCursor);
+        }
+        else if(p_move.y() < top && p_move.y() > 0)
+        {
+            setCursor(Qt::SizeVerCursor);
+        }
+        else if(p_move.y() > buttom && p_move.y() < maxHeight)
+        {
+            setCursor(Qt::SizeVerCursor);
+        }
+        else if(p_move.x() <   left && p_move.x() > 0)
+        {
+            setCursor(Qt::SizeHorCursor);
+        }
+        else if(p_move.x() > right && p_move.x() < maxWidth)
+        {
+            setCursor(Qt::SizeHorCursor);
+        }
+        else if(dm_rect.contains(event->scenePos()))
+        {
+            setCursor(Qt::OpenHandCursor);
+        }
+        else
+        {
+            setCursor(Qt::ArrowCursor);
         }
     }
-    QGraphicsRectItem::keyPressEvent(event);
-}
+    else
+    {
+        setCursor(Qt::ArrowCursor);
+    }
 
-void BoxItem::keyReleaseEvent(QKeyEvent *)
-{
-    send_Dirty();
 }
-
 
 void BoxItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
 
+    m_resizing = false;
+    if(this->isSelected()){
+        p_move = event->scenePos() - dm_rect.topLeft(); //值不对
 
-    if (event->modifiers() & Qt::ShiftModifier) {
-        m_resizing = true;
-        setCursor(Qt::SizeAllCursor);
+        int maxHeight = dm_rect.height();
+        int maxWidth = dm_rect.width();
+
+        int top = dm_rect.height()/15;
+        int left = dm_rect.width()/15;
+        int buttom = maxHeight - top;
+        int right = maxWidth - left;
+
+        if(p_move.x() < left && p_move.y() < top && p_move.x() > 0 && p_move.y() > 0)
+        {
+            moveType = 1;
+            m_resizing = true;
+        }
+        else if(p_move.x() > right && p_move.y() < top && p_move.x() < maxWidth && p_move.y() > 0)
+        {
+            moveType = 2;
+            m_resizing = true;
+        }
+        else  if(p_move.x() < left &&  p_move.y() > buttom && p_move.x() > 0 && p_move.y() < maxHeight)
+        {
+            moveType = 3;
+            m_resizing = true;
+        }
+        else if(p_move.x() > right && p_move.y() > buttom && p_move.x() < maxWidth && p_move.y() < maxHeight)
+        {
+            moveType = 4;
+            m_resizing = true;
+        }
+        else if(p_move.y() < top && p_move.y() > 0)
+        {
+            moveType = 5;
+            m_resizing = true;
+        }
+        else if(p_move.y() > buttom && p_move.y() < maxHeight)
+        {
+            moveType = 6;
+            m_resizing = true;
+        }
+        else if(p_move.x() <   left && p_move.x() > 0)
+        {
+            moveType = 7;
+            m_resizing = true;
+        }
+        else if(p_move.x() > right && p_move.x() < maxWidth)
+        {
+            moveType = 8;
+            m_resizing = true;
+        }
+        else
+        {
+            m_resizing = false;
+            moveType = -1;
+            QGraphicsRectItem::mousePressEvent(event);
+        }
     }
     else
+    {
+        m_resizing = false;
+        moveType = -1;
         QGraphicsRectItem::mousePressEvent(event);
+    }
+
+
 }
 
 
@@ -337,10 +431,39 @@ void BoxItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
         return;
     if (m_resizing) {
         QRectF rectangle(rect());
-        if (event->pos().x() < rectangle.x())
+        if(moveType == 1)
+        {
+            rectangle.setTopLeft(event->pos());
+        }
+        else if(moveType == 2)
+        {
+            rectangle.setTopRight(event->pos());
+        }
+        else  if(moveType == 3)
+        {
             rectangle.setBottomLeft(event->pos());
-        else
+        }
+        else if(moveType == 4)
+        {
             rectangle.setBottomRight(event->pos());
+        }
+        else if(moveType == 5)
+        {
+            rectangle.setTop(event->pos().y());
+        }
+        else  if(moveType == 6)
+        {
+            rectangle.setBottom(event->pos().y());
+        }
+        else if(moveType == 7)
+        {
+            rectangle.setLeft(event->pos().x());
+        }
+        else if(moveType == 8)
+        {
+            rectangle.setRight(event->pos().x());
+        }
+
         if(isRectContains(rectangle)){
             m_charge = true;
             setRect(rectangle);
@@ -373,7 +496,7 @@ void BoxItem::send_Dirty()
         QPointF tPos = this->pos() + this->rect().topLeft();
         QRectF f_rect = this->rect();
         QRect rect(QPoint(tPos.x(),tPos.y()),QSize(f_rect.width(), f_rect.height()));
-        int result = MyAlleyway::getInstance()->moveWinInPage(rect,m_id);
+        int result = MyAlleyway::getInstance()->moveWinInPage(rect,m_in_rect,m_id);
         if(result == 0)
         {
             reNew();
@@ -382,8 +505,7 @@ void BoxItem::send_Dirty()
         {
             m_lastrect = dm_rect;
             dm_rect = rect;
-            //    MyAlleyway::getInstance()->Switch_setting_window(dynamic_cast<QObject*>(this));
-            emit dirty();
+            MyAlleyway::getInstance()->Switch_setting_window(dynamic_cast<QObject*>(this));
         }
 
     }
@@ -392,20 +514,17 @@ void BoxItem::send_Dirty()
 
 void BoxItem::initMenu()
 {
-    QAction *showLock = createMenuAction(&menuEngLish, QIcon(),
-                                         "lock", m_lock, true);
-    QAction *showLock_1 = createMenuAction(&menuChinese, QIcon(),
-                                           QStringLiteral("锁"), m_lock, true);
-    connect(showLock, SIGNAL(triggered()),
-            this, SLOT(a_setLock()));
-    connect(showLock_1, SIGNAL(triggered()),
-            this, SLOT(a_setLock()));
 
-    menuEngLish.addAction(QIcon("1.png"), QStringLiteral("Frame"),
-                          this,SLOT(a_setframe()));
-    menuChinese.addAction(QIcon("1.png"), QStringLiteral("边框"),
-                          this,SLOT(a_setframe()));
+    menuEngLish.addAction(QIcon("1.png"), QStringLiteral("Fine-tuning Data"),
+                          this,SLOT(setfine_tuning_data()));
+    menuChinese.addAction(QIcon("1.png"), QStringLiteral("微调数据"),
+                          this,SLOT(setfine_tuning_data()));
 
+
+    menuEngLish.addAction(QIcon("1.png"), QStringLiteral("Enlarge"),
+                          this,SLOT(renlarge()));
+    menuChinese.addAction(QIcon("1.png"), QStringLiteral("放大"),
+                          this,SLOT(renlarge()));
 
     menuEngLish.addAction(QIcon("1.png"), QStringLiteral("reduction"),
                           this,SLOT(reduction()));
@@ -413,14 +532,14 @@ void BoxItem::initMenu()
                           this,SLOT(reduction()));
 
     menuEngLish.addAction(QIcon("1.png"), QStringLiteral("Top floor"),
-                          this,SIGNAL(setTopLayer()));
+                          this,SLOT(rsetTopLayer()));
     menuChinese.addAction(QIcon("1.png"), QStringLiteral("顶层"),
-                          this,SIGNAL(setTopLayer()));
+                          this,SLOT(rsetTopLayer()));
 
     menuEngLish.addAction(QIcon("1.png"), QStringLiteral("Bottom floor"),
-                          this,SIGNAL(setButtonLayer()));
+                          this,SLOT(rsetButtonLayer()));
     menuChinese.addAction(QIcon("1.png"), QStringLiteral("底层"),
-                          this,SIGNAL(setButtonLayer()));
+                          this,SLOT(rsetButtonLayer()));
 
 
     menuEngLish.addAction(QIcon("1.png"), QStringLiteral("Frame"),
@@ -428,17 +547,22 @@ void BoxItem::initMenu()
     menuChinese.addAction(QIcon("1.png"), QStringLiteral("边框"),
                           this,SLOT(a_setframe()));
 
+    menuEngLish.addAction(QIcon("1.png"), QStringLiteral("Fine-tuning"),
+                          this,SLOT(setfine_tuning()));
+    menuChinese.addAction(QIcon("1.png"), QStringLiteral("微调"),
+                          this,SLOT(setfine_tuning()));
 
 }
 
 
 void BoxItem::edit()
 {
-
+    this->setSelected(true);
     if(MyAlleyway::getInstance()->isEnglish)
         menuEngLish.exec(QCursor::pos());
     else
         menuChinese.exec(QCursor::pos());
+
 
 }
 
@@ -451,6 +575,8 @@ void BoxItem::reNew() //拒绝修改
 
 void BoxItem::reduction()//还原
 {
+    if(m_lock)
+        return;
     resetRect_in(m_lastrect);//重写
 
 }
@@ -469,16 +595,37 @@ QAction *BoxItem::createMenuAction(QMenu *menu, const QIcon &icon,
     action->setData(data);
     return action;
 }
-
+#include <QTextCursor>
 void BoxItem::paint(QPainter *painter,
                     const QStyleOptionGraphicsItem* i, QWidget* w)
 {
-    QGraphicsRectItem::paint(painter,i,w);
+    QStyleOptionGraphicsItem op;
+    op.initFrom(w);
 
-    if(m_frameOn)
+    QGraphicsRectItem::paint(painter,i,w);
+    if (i->state & QStyle::State_Selected)
+        op.state = QStyle::State_None;
+
+    // 选中时绘制
+    if (i->state & QStyle::State_Selected) {
+        qreal itemPenWidth = pen().widthF();
+        const qreal pad = itemPenWidth / 2;
+        const qreal penWidth = 7;
+        // 边框区域颜色
+        // 绘制实线
+        painter->setPen(QPen(QColor(Qt::yellow), penWidth, Qt::SolidLine));
+        painter->setBrush(Qt::NoBrush);
+        painter->drawRect(boundingRect().adjusted(pad, pad, -pad, -pad));
+        // 绘制虚线
+        painter->setPen(QPen(QColor(Qt::red), penWidth, Qt::DashLine));
+        painter->setBrush(Qt::NoBrush);
+        painter->drawRect(boundingRect().adjusted(pad, pad, -pad, -pad));
+    }
+    else if(m_frameOn)
     {
         //将边框的大小+7便于用户查看，使用100的透明度方便用户查看是否选中
-        painter->setPen(QPen(QColor(m_frameRed,m_frameGreen,m_frameBlue,80),m_framSize+7,Qt::SolidLine));
+
+        painter->setPen(QPen(QColor(m_frameRed,m_frameGreen,m_frameBlue),m_framSize+7,Qt::SolidLine));
         painter->drawRect(this->rect());
     }
 
@@ -502,38 +649,103 @@ void BoxItem::paint(QPainter *painter,
         painter->drawRect(rect2);
     }
 
+    {
+        QPen pen(Qt::black);
+        int pSize = MyAlleyway::getInstance()->penSize > 9 ?  MyAlleyway::getInstance()->penSize : 10;
+        painter->setFont(QFont("宋体",pSize,QFont::Bold));
+        painter->setPen(pen);
+
+        QPointF pos = this->rect().topLeft() + QPointF(10,20);
+        QString str = "";
+        if(m_in > 31)
+        {
+            str = tr("_HDMI%1").arg((m_in-32)%4 + 1); //HDMI1 - 4
+        }
+        singleName = tr("In%1%2").arg(m_in > 31? (m_in - 32)/2 + 1: m_in+1).arg(str);
+
+        painter->drawText(pos.x(),pos.y(),this->rect().width(), this->rect().height(),Qt::AlignLeft,tr("Win:[%1]\r\nX_Y_W_H:[%2,%3,%4,%5]\r\nSource:%6").arg(m_id+1)
+                          .arg((int)(this->pos().x()+this->rect().x()))
+                          .arg((int)(this->pos().y()+this->rect().y())).arg((int)this->rect().width()).arg((int)this->rect().height()).arg(singleName));
+
+
+    }
+
     this->scene()->update();
-  //  update();//刷新
 
 }
 
 void BoxItem::AutoColor()
 {
-    QColor color = QColor(rand()%200,rand()%240,rand()%240);
-    QGraphicsRectItem::setBrush(color.lighter(100));
+    int red,green,blue;
+
+    do{
+        red = rand()%120;
+        green = rand()%120;
+        blue = rand()%120;
+    }while(red>100 && green > 100 && blue > 100);
+
+    QColor color = QColor(red+100,green+100,blue+100);
+    QGraphicsRectItem::setBrush(color);
+}
+
+
+void BoxItem::a_setframe()
+{
+    if(!m_lock){
+        m_frameOn = !m_frameOn;
+        MyAlleyway::getInstance()->Switch_setting_window(dynamic_cast<QObject*>(this));
+        emit updata_page();
+    }
+}
+void BoxItem::setfine_tuning()
+{
+    if(!m_lock)
+        emit fine_tuning(m_id);
+}
+
+void BoxItem::setfine_tuning_data()
+{
+    if(!m_lock){
+        QRectF rect = scene()->sceneRect();
+        QList<int> list;
+        list<<m_id
+           <<dm_rect.x()<<dm_rect.y()<<dm_rect.width()<<dm_rect.height()
+          <<rect.width()<<rect.height()
+         <<m_in_rect.x()<<m_in_rect.y()<<m_in_rect.width()<<m_in_rect.height();
+        emit fine_tuning_data(list);
+    }
 }
 
 #include <QMimeData>
-#include <QDragEnterEvent>
-void BoxItem::dragEnterEvent(QDragEnterEvent *event)
+#include <QGraphicsSceneDragDropEvent>
+
+
+void BoxItem::dragEnterEvent(QGraphicsSceneDragDropEvent *event)
 {
-    event->setDropAction(Qt::MoveAction);
+    if(!m_lock){
+        event->setDropAction(Qt::CopyAction);
+        event->accept();
+    }
+}
+
+void BoxItem::dropEvent(QGraphicsSceneDragDropEvent *event)
+{
+    if(!m_lock)
+    {
+        QByteArray value = event->mimeData()->data("application/tree");
+        m_in = value[0];
+        MyAlleyway::getInstance()->Switch_setting_winSingle(dynamic_cast<QObject*>(this));
+        emit updata_page();
+    }
     event->accept();
 }
-
-void BoxItem::dropEvent(QDropEvent *event)
-{
-    qDebug()<<"emt = "<<event->mimeData()->data("application/tree");
-}
-
-
-
 
 
 //读写重载
 QDataStream &operator<<(QDataStream &out, const BoxItem &boxItem)
 {
-    out << boxItem.getRect()<<boxItem.lock()<<boxItem.id()
+    //  bool lock = false;
+    out << boxItem.getRect()<<boxItem.getInRect()<<boxItem.lock()<<boxItem.id()
         <<boxItem.in()<<boxItem.frameOn()<<boxItem.frameSize()
        <<boxItem.frameRed()<<boxItem.frameGreen()<<boxItem.frameBlue()
       <<boxItem.zValue();
@@ -554,6 +766,13 @@ QDataStream &operator>>(QDataStream &in, BoxItem &boxItem)
             >>boxItem.m_frameRed>>boxItem.m_frameGreen>>boxItem.m_frameBlue>>z;
     boxItem.setZValue(z);
     boxItem.AutoColor();
+
+    QString str = "";
+    if(boxItem.m_in > 31)
+    {
+        str = QObject::tr("_HDMI%1").arg((boxItem.m_in-32)%4 + 1); //HDMI1 - 4
+    }
+    boxItem.singleName = QObject::tr("In%1%2").arg(boxItem.m_in > 31? (boxItem.m_in - 32)/2 + 1: boxItem.m_in+1).arg(str);
 
     return in;
 }
